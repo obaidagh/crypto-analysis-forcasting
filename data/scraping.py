@@ -37,9 +37,10 @@ def coin_historical_data(symbol,end_time=int(time.time()),period='hourly',start_
     h = list(map(flatten_dict, quote_list))
     
     df = pd.DataFrame(h)
-    df["time_open"] = pd.to_datetime(df["time_open"],utc=None)
-    df.drop(['time_close', 'time_low',"time_high","high","low"	,"timestamp"], axis = 1, inplace = True)
-    df.fillna(0)
+    df["time"] = pd.to_datetime(df["time_open"],utc=None).dt.date
+    df.drop(['time_close', 'time_low',"time_high","high","low"	,"timestamp","time_open"], axis = 1, inplace = True)
+    df.set_index("time",inplace=True)
+    df.fillna(0,inplace=True)
     return df
 
 
