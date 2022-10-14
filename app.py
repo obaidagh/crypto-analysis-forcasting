@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 
 plt.style.use('seaborn-whitegrid')
 mpl.rcParams['figure.dpi'] = 300
-st.set_page_config(page_title="StatsEuropa", page_icon="📈")
+st.set_page_config(page_title="Crypto", page_icon="📈")
 
 st.title('Cryptocurrencies price analysis and forcasting 📈')
 
@@ -20,7 +20,7 @@ with tab1:########################################################analysis######
         'Select coin?',
         (["BTC","ETH","ADA","XRP","MATIC","FTM"]))
 
-    df = pd.read_csv(f"data/{option.lower()}_daily.csv")
+    df = pd.read_csv(f"data/{option.lower()}_daily.csv", parse_dates = ['time'])
     tab_str = ['Plotting', 'insights']
     tab1, tab2 = st.tabs(tab_str)   
     with tab1:#plots
