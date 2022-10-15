@@ -1,29 +1,33 @@
 import streamlit as st
 import pandas as pd
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import plotly.express as px
 import plotly.graph_objects as go
 
+from prophet.serialize import model_to_json, model_from_json
+from prophet import Prophet
+from prophet.plot import plot_plotly, plot_components_plotly
 
 plt.style.use('seaborn-whitegrid')
-mpl.rcParams['figure.dpi'] = 300
+mpl.rcParams['figure.dpi'] = 150
 st.set_page_config(page_title="Crypto", page_icon="📈")
-
-st.title('Cryptocurrencies price analysis and forcasting 📈')
+st.title('Crypto Analysis and Forcasting 📈')
 
 tab_str = ['Analysis', 'Forcasting']
 tab1, tab2 = st.tabs(tab_str)
 
-with tab1:########################################################analysis######################
+########################################################analysis########################################################
+with tab1:
     option = st.selectbox(
         'Select coin?',
         (["BTC","ETH","ADA","XRP","MATIC","FTM"]))
 
     df = pd.read_csv(f"data/{option.lower()}_daily.csv", parse_dates = ['time'])
     tab_str = ['Plotting', 'insights']
-    tab1, tab2 = st.tabs(tab_str)   
-    with tab1:#plots
+    tab_plot, tab_ins = st.tabs(tab_str)   
+    with tab_plot:#plots
 
         moving_avg_values = st.slider('Select 2 moving averages',20, 250, (50, 100))
 
@@ -49,7 +53,7 @@ with tab1:########################################################analysis######
 
         st.write(fig) 
 
-    with tab2:#insights
+    with tab_ins:#insights
         col1, col2, col3 = st.columns(3)
         ath = df.open.max()
         atl = df.open.min() 
@@ -61,3 +65,37 @@ with tab1:########################################################analysis######
         with col3:
             st.markdown(f"<h3 style='vertical-align:middle;text-align: center;'>{ath}</h3> <br>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='vertical-align:middle;text-align: center;'>{atl}</h3> <br>", unsafe_allow_html=True)
+
+
+########################################################forcasting########################################################
+with tab2:
+    st.warning('Currently only for bitcoin')
+    tab_str = ['Prophet', 'Pycaret','ARIMA','XGBOOST']
+    tab_pr, tab_pycrt,tab_ar,tab_xgb = st.tabs(tab_str)
+    
+
+    #..................prophet model...........#
+    with tab_pr:
+        
+        col1_pr, col2_pr, col3_pr = st.columns(3)
+        with col1_pr:
+            period = st.text_input("Enter prediction period in days", value="365")
+
+        with open('models/serialized_model.json', 'r') as fin:
+            model = model_from_json(fin.read())  # Load mode
+            
+        future = model.make_future_dataframe(periods=int(period))
+        forecast = model.predict(future)
+        forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+
+        tab_str = ['Components', 'Predictions']
+        tab_comp, tab_pred = st.tabs(tab_str)
+        with tab_comp:
+            st.write(model.plot_components(forecast))
+        with tab_pred:
+            st.write(plot_plotly(model, forecast))
+
+
+
+        
+
