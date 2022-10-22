@@ -88,12 +88,13 @@ with tab2:
         forecast = model.predict(future)
         forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
 
-        tab_str = ['Components', 'Predictions']
-        tab_comp, tab_pred = st.tabs(tab_str)
+        tab_str = ['Predictions','Components']
+        tab_pred,tab_comp = st.tabs(tab_str)
+        with tab_pred:
+            st.write(plot_plotly(model, forecast, figsize = (800, 600)))
         with tab_comp:
             st.write(model.plot_components(forecast))
-        with tab_pred:
-            st.write(plot_plotly(model, forecast))
+
 
 
 
