@@ -1,22 +1,26 @@
+from numpy import size
 import streamlit as st
 import pandas as pd
 
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import plotly.express as px
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
-from prophet.serialize import model_to_json, model_from_json
-from prophet import Prophet
+from data import data_cleaning
+from analysis import acf_pacf_plot,hist_plot,qq_plot,seasonal_decomp
+from streamlit_funcs.insights import insights
+from streamlit_funcs.prophet_res import prophet_res
+from streamlit_funcs.arima_st import arima_st
+
+from prophet.serialize import  model_from_json
 from prophet.plot import plot_plotly, plot_components_plotly
 
-plt.style.use('seaborn-whitegrid')
-mpl.rcParams['figure.dpi'] = 150
-st.set_page_config(page_title="Crypto", page_icon="📈")
+st.set_page_config(page_title="Crypto", page_icon="📈",layout='wide')
 st.title('Crypto Analysis and Forcasting 📈')
 
 tab_str = ['Analysis', 'Forcasting']
 tab1, tab2 = st.tabs(tab_str)
+
 
 ########################################################analysis########################################################
 with tab1:
@@ -24,79 +28,51 @@ with tab1:
         'Select coin?',
         (["BTC","ETH","ADA","XRP","MATIC","FTM"]))
 
-    df = pd.read_csv(f"data/{option.lower()}_daily.csv", parse_dates = ['time'])
-    tab_str = ['Plotting', 'insights']
-    tab_plot, tab_ins = st.tabs(tab_str)   
-    with tab_plot:#plots
+    _,df,_,df_test=data_cleaning(f"{option.lower()}",split_point=-1)
 
-        moving_avg_values = st.slider('Select 2 moving averages',20, 250, (50, 100))
 
-        new_df= df[["time","open"]]
+    tab_str = ['Time series','Histogram','Autocorrelation','QQ','Seasonal decompose', 'Insights']
+    tab_ts,tab_hist,tab_acf,tab_qq,tab_seas, tab_ins = st.tabs(tab_str)
+    with tab_ts:
+        ts_col1, ts_col2, = st.columns(2)
 
-        new_df["moving1"]=new_df.open.rolling(moving_avg_values[0]).mean()
-        new_df["moving2"]=new_df.open.rolling(moving_avg_values[1]).mean()
+        moving_avg_1 = ts_col1.text_input("Enter first moving average", value="12")
+        moving_avg_2 = ts_col2.text_input("Enter second moving average", value="365")
+        df["moving1"]=df.price.rolling(f"{moving_avg_1}D").mean()
+        df["moving2"]=df.price.rolling(f"{moving_avg_2}D").mean()
 
-        new_df.fillna(0,inplace=True)
+        fig = px.line(df, x=df.index.to_timestamp(), y=['price','moving1','moving2'],
+            title=f"{option} Daily Price",width=1400,height=600)
 
-        new_df.rename(columns  = {
-                        'open':'Open price',
-                        'moving1': f'Moving average{moving_avg_values[0]}',
-                        'moving2': f'Moving average{moving_avg_values[1]}'
-                        },
-                        inplace=True, errors='raise')
 
-        #line plot
-        fig = px.line(new_df, x="time", y=new_df.columns,
-                hover_data={"time": "|%B %d, %Y"},
+        st.write(fig)
 
-                title=f"{option} Daily Price")   
-
-        st.write(fig) 
+    with tab_hist:
+        st.write(hist_plot(df))
+    with tab_acf:
+        st.write(acf_pacf_plot(df.price,"Prices",lags=90))
+        st.write(acf_pacf_plot(df.returns,"Returns",lags=90))
+    with tab_qq:
+        st.write(qq_plot(df))
+    with tab_seas:
+        st.write(seasonal_decomp(df,"price"))
 
     with tab_ins:#insights
-        col1, col2, col3 = st.columns(3)
-        ath = df.open.max()
-        atl = df.open.min() 
-        with col1:
-            st.markdown(f"<h3 style='background-color:#2bcc66;color: white;\
-                              vertical-align:middle;text-align: center;'>All-time High</h3> <br>", unsafe_allow_html=True)
-            st.markdown(f"<h3 style='background-color:#e64356;color: white;\
-                              vertical-align:middle;text-align: center;'>All-time Low</h3>", unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"<h3 style='vertical-align:middle;text-align: center;'>{ath}</h3> <br>", unsafe_allow_html=True)
-            st.markdown(f"<h3 style='vertical-align:middle;text-align: center;'>{atl}</h3> <br>", unsafe_allow_html=True)
+        insights(df)
 
 
-########################################################forcasting########################################################
+########################################################analysis########################################################
 with tab2:
     st.warning('Currently only for bitcoin')
-    tab_str = ['Prophet', 'Pycaret','ARIMA','XGBOOST']
-    tab_pr, tab_pycrt,tab_ar,tab_xgb = st.tabs(tab_str)
+    tab_str = ['Prophet','ARIMA Family Prices','ARIMA Family Returns']
+    tab_prophet,tab_arima_price,tab_arima_returns = st.tabs(tab_str)
     
 
     #..................prophet model...........#
-    with tab_pr:
+    with tab_prophet:        
+        prophet_res(df_test)
+    with tab_arima_price:
+        arima_st(is_price=True)
+    with tab_arima_returns:
+        arima_st(is_price=False)
         
-        col1_pr, col2_pr, col3_pr = st.columns(3)
-        with col1_pr:
-            period = st.text_input("Enter prediction period in days", value="365")
-
-        with open('models/serialized_model.json', 'r') as fin:
-            model = model_from_json(fin.read())  # Load mode
-            
-        future = model.make_future_dataframe(periods=int(period))
-        forecast = model.predict(future)
-        forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
-
-        tab_str = ['Predictions','Components']
-        tab_pred,tab_comp = st.tabs(tab_str)
-        with tab_pred:
-            st.write(plot_plotly(model, forecast, figsize = (800, 600)))
-        with tab_comp:
-            st.write(model.plot_components(forecast))
-
-
-
-
-        
-
