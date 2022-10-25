@@ -30,6 +30,9 @@ The data source is coinmarketcap web-api
     |
     ├── assets
     │   ├── analysis.png
+    │   ├── arima_fam.png
+    │   ├── prophet.png
+    │   ├── demo.mp4
     │   └── data.png
     |
     ├── analysis
